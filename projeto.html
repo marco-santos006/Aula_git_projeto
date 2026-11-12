@@ -19,19 +19,18 @@
         .user-info { background: #e8f4fd; padding: 10px; border-radius: 4px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
-<body>
+<body onload="inicializarSistema()">
 
 <div class="container">
     <h1>Sistema de Gerenciamento Escolar</h1>
 
-    <!-- TELA DE LOGIN (RF-19 / RF-20) -->
+    <!-- TELA DE LOGIN-->
     <div id="login-section" class="section">
         <h2>Autenticação no Sistema</h2>
         <p>Selecione o perfil de acesso para testar as funcionalidades:</p>
         <select id="login-perfil">
             <option value="admin">Administrador / Funcionário (Secretaria)</option>
             <option value="professor">Professor (Prof. Carlos)</option>
-            <option value="aluno">Aluno (João Silva - Mat: 2026001)</option>
         </select>
         <button onclick="realizarLogin()">Entrar</button>
     </div>
@@ -48,24 +47,13 @@
             <h2>Painel Administrativo / Secretaria</h2>
             
             <div class="section">
-                <h3>Cadastrar Aluno (RF-01 / RN-01 / RN-03)</h3>
+                <h3>Matricular Aluno</h3>
                 <input type="text" id="aluno-nome" placeholder="Nome Completo">
                 <input type="text" id="aluno-cpf" placeholder="CPF (ex: 111.222.333-44)">
                 <input type="date" id="aluno-nasc">
                 <input type="text" id="aluno-tel" placeholder="Telefone">
                 <input type="email" id="aluno-email" placeholder="E-mail">
-                <button onclick="cadastrarAluno()">Cadastrar Aluno</button>
-            </div>
-
-            <div class="section">
-                <h3>Matricular Aluno (RF-07 / RN-02)</h3>
-                <select id="mat-aluno-select"></select>
-                <select id="mat-turma">
-                    <option value="Turma A - 1º Ano">Turma A - 1º Ano</option>
-                    <option value="Turma B - 2º Ano">Turma B - 2º Ano</option>
-                </select>
-                <input type="text" id="mat-periodo" placeholder="Período Letivo (ex: 2026/1)" value="2026/1">
-                <button onclick="matricularAluno()">Realizar Matrícula</button>
+                <button onclick="matricularAluno()">Matricular Aluno</button>
             </div>
 
             <div class="section">
@@ -83,7 +71,7 @@
         <div id="panel-professor" class="hidden">
             <h2>Painel do Professor</h2>
             <div class="section">
-                <h3>Registrar Notas e Frequência (RF-09 / RF-11 / RN-08)</h3>
+                <h3>Registrar Notas e Frequência</h3>
                 <select id="prof-aluno-select"></select>
                 <select id="prof-disciplina">
                     <option value="Matemática">Matemática</option>
@@ -98,7 +86,7 @@
 
         <!-- PAINEL DO ALUNO -->
         <div id="panel-aluno" class="hidden">
-            <h2>Boletim Escolar / Consulta (RF-10 / RF-13 / RF-15 / RN-10)</h2>
+            <h2>Boletim Escolar / Consulta</h2>
             <div class="section">
                 <h3>Desempenho do Aluno: <span id="nome-aluno-logado"></span></h3>
                 <table>
@@ -117,10 +105,10 @@
     // Banco de dados em memória inicializado com exemplos
     let db = {
         alunos: [
-            { matricula: "2026001", nome: "João Silva", cpf: "111.222.333-44", nasc: "2008-05-10", tel: "11999998888", email: "joao@email.com" }
+            { matricula: "2026001", nome: "Marco Aurélio Dos Santos Silva", cpf: "456.994.039-23", nasc: "10/02/2006", tel: "11992914523", email: "marcolacom@email.com" }
         ],
         matriculas: [
-            { alunoMatricula: "2026001", turma: "Turma A - 1º Ano", periodo: "2026/1", status: "Ativa" }
+            { alunoMatricula: "2026001", turma: "Turma A - 1º Ano", semestre: "1/2026", status: "Ativa" }
         ],
         academico: {
             "2026001": {
@@ -132,8 +120,26 @@
 
     let perfilAtual = null;
 
+    // Executado ao carregar a página
+    function inicializarSistema() {
+        atualizarSelectLogin();
+    }
+
+    // Atualiza o select da tela de login com os perfis fixos + todos os alunos cadastrados
+    function atualizarSelectLogin() {
+        const selectLogin = document.getElementById("login-perfil");
+        selectLogin.innerHTML = `
+            <option value="admin">Administrador / Funcionário (Secretaria)</option>
+            <option value="professor">Professor (Prof. Carlos)</option>
+        `;
+
+        db.alunos.forEach(aluno => {
+            selectLogin.innerHTML += `<option value="aluno_${aluno.matricula}">Aluno (${aluno.nome} - Mat: ${aluno.matricula})</option>`;
+        });
+    }
+
     function realizarLogin() {
-        perfilAtual = document.getElementById("login-perfil").value;
+        const valorSelecionado = document.getElementById("login-perfil").value;
 
         document.getElementById("login-section").classList.add("hidden");
         document.getElementById("app-section").classList.remove("hidden");
@@ -143,18 +149,24 @@
         document.getElementById("panel-professor").classList.add("hidden");
         document.getElementById("panel-aluno").classList.add("hidden");
 
-        if (perfilAtual === "admin") {
+        if (valorSelecionado === "admin") {
+            perfilAtual = "admin";
             document.getElementById("panel-admin").classList.remove("hidden");
             document.getElementById("welcome-msg").innerText = "Perfil: Administrador / Secretaria";
             atualizarTabelasAdmin();
-        } else if (perfilAtual === "professor") {
+        } else if (valorSelecionado === "professor") {
+            perfilAtual = "professor";
             document.getElementById("panel-professor").classList.remove("hidden");
             document.getElementById("welcome-msg").innerText = "Perfil: Professor Carlos";
             atualizarSelectAlunos("prof-aluno-select");
-        } else if (perfilAtual === "aluno") {
+        } else if (valorSelecionado.startsWith("aluno_")) {
+            perfilAtual = "aluno";
+            const matriculaAluno = valorSelecionado.replace("aluno_", "");
+            const alunoObj = db.alunos.find(a => a.matricula === matriculaAluno);
+            
             document.getElementById("panel-aluno").classList.remove("hidden");
-            document.getElementById("welcome-msg").innerText = "Perfil: Aluno (João Silva)";
-            carregarBoletimAluno("2026001");
+            document.getElementById("welcome-msg").innerText = `Perfil: Aluno (${alunoObj.nome})`;
+            carregarBoletimAluno(matriculaAluno);
         }
     }
 
@@ -162,10 +174,10 @@
         perfilAtual = null;
         document.getElementById("app-section").classList.add("hidden");
         document.getElementById("login-section").classList.remove("hidden");
+        atualizarSelectLogin();
     }
 
-    // RF-01 & RN-01 & RN-03
-    function cadastrarAluno() {
+    function matricularAluno() {
         const nome = document.getElementById("aluno-nome").value.trim();
         const cpf = document.getElementById("aluno-cpf").value.trim();
         const nasc = document.getElementById("aluno-nasc").value;
@@ -177,50 +189,31 @@
             return;
         }
 
-        // RN-01: Cadastro único por CPF
+        // Cadastro único por CPF
         const cpfExiste = db.alunos.some(a => a.cpf === cpf);
         if (cpfExiste) {
-            alert("Erro (RN-01): Já existe um aluno cadastrado com este CPF.");
+            alert("Erro: Já existe um aluno cadastrado com este CPF.");
             return;
         }
 
-        // RN-03: Geração automática de matrícula única
+        // Geração automática de matrícula única
         const novaMatricula = "2026" + String(db.alunos.length + 1).padStart(3, '0');
 
         db.alunos.push({ matricula: novaMatricula, nome, cpf, nasc, tel, email });
+        db.matriculas.push({ alunoMatricula: novaMatricula, turma: "Turma A - 1º Ano", semestre: "1/2026", status: "Ativa" });
+
         alert(`Aluno cadastrado com sucesso! Matrícula gerada: ${novaMatricula}`);
 
         document.getElementById("aluno-nome").value = "";
         document.getElementById("aluno-cpf").value = "";
+        document.getElementById("aluno-nasc").value = "";
         document.getElementById("aluno-tel").value = "";
         document.getElementById("aluno-email").value = "";
 
         atualizarTabelasAdmin();
+        atualizarSelectLogin();
     }
 
-    // RF-07 & RN-02
-    function matricularAluno() {
-        const matriculaAluno = document.getElementById("mat-aluno-select").value;
-        const turma = document.getElementById("mat-turma").value;
-        const periodo = document.getElementById("mat-periodo").value.trim();
-
-        if (!matriculaAluno || !periodo) {
-            alert("Selecione o aluno e informe o período letivo.");
-            return;
-        }
-
-        // RN-02: Matrícula única por período na mesma turma
-        const jaMatriculado = db.matriculas.some(m => m.alunoMatricula === matriculaAluno && m.turma === turma && m.periodo === periodo);
-        if (jaMatriculado) {
-            alert("Erro (RN-02): O aluno já possui matrícula ativa nesta turma para o período informado.");
-            return;
-        }
-
-        db.matriculas.push({ alunoMatricula: matriculaAluno, turma, periodo, status: "Ativa" });
-        alert("Matrícula realizada com sucesso!");
-    }
-
-    // RF-09, RF-11, RN-08, RN-10
     function salvarNotasFrequencia() {
         const matricula = document.getElementById("prof-aluno-select").value;
         const disciplina = document.getElementById("prof-disciplina").value;
@@ -232,9 +225,9 @@
             return;
         }
 
-        // RN-08: Escala de notas de 0 a 10
+        // Escala de notas de 0 a 10
         if (isNaN(nota) || nota < 0 || nota > 10) {
-            alert("Erro (RN-08): A nota inserida deve estar na faixa de 0 a 10.");
+            alert("Erro: A nota inserida deve estar na faixa de 0 a 10.");
             return;
         }
 
@@ -247,7 +240,7 @@
             db.academico[matricula] = {};
         }
 
-        // RN-10: Regra de Aprovação simplificada (Média mínima >= 6.0)
+        // Regra de Aprovação simplificada (Média mínima >= 6.0)
         const situacao = nota >= 6.0 ? "Aprovado" : "Reprovado";
 
         db.academico[matricula][disciplina] = { nota, faltas, situacao };
@@ -260,7 +253,7 @@
         db.alunos.forEach(aluno => {
             tbody.innerHTML += `<tr><td>${aluno.matricula}</td><td>${aluno.nome}</td><td>${aluno.cpf}</td><td>${aluno.email}</td></tr>`;
         });
-        atualizarSelectAlunos("mat-aluno-select");
+        atualizarSelectAlunos("prof-aluno-select");
     }
 
     function atualizarSelectAlunos(elementId) {
@@ -271,7 +264,7 @@
         });
     }
 
-    // RF-15 / RN-12 (Acesso do aluno aos seus próprios dados)
+    // Acesso do aluno aos seus próprios dados
     function carregarBoletimAluno(matricula) {
         const alunoObj = db.alunos.find(a => a.matricula === matricula);
         if (alunoObj) {
