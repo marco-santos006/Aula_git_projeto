@@ -49,18 +49,19 @@
             <div class="section">
                 <h3>Matricular Aluno</h3>
                 <input type="text" id="aluno-nome" placeholder="Nome Completo">
-                <input type="text" id="aluno-cpf" placeholder="CPF (ex: 111.222.333-44)">
+                <input type="text" id="aluno-cpf" placeholder="CPF (apenas 11 números)" maxlength="11">
                 <input type="date" id="aluno-nasc">
-                <input type="text" id="aluno-tel" placeholder="Telefone">
+                <input type="text" id="aluno-tel" placeholder="Telefone com DDD (apenas 11 números)" maxlength="11">
                 <input type="email" id="aluno-email" placeholder="E-mail">
                 <button onclick="matricularAluno()">Matricular Aluno</button>
             </div>
 
-            <!-- CADASTRO DE PROFESSOR (NOVO) -->
+            <!-- CADASTRO DE PROFESSOR -->
             <div class="section">
                 <h3>Cadastrar Professor</h3>
                 <input type="text" id="prof-nome" placeholder="Nome Completo do Professor">
-                <input type="text" id="prof-cpf" placeholder="CPF (ex: 222.333.444-55)">
+                <input type="text" id="prof-cpf" placeholder="CPF (apenas 11 números)" maxlength="11">
+                <input type="text" id="prof-tel" placeholder="Telefone com DDD (apenas 11 números)" maxlength="11">
                 <input type="text" id="prof-especialidade" placeholder="Especialidade / Disciplina (ex: Matemática)">
                 <input type="email" id="prof-email" placeholder="E-mail">
                 <button onclick="cadastrarProfessor()">Cadastrar Professor</button>
@@ -70,7 +71,7 @@
                 <h3>Alunos Cadastrados no Sistema</h3>
                 <table>
                     <thead>
-                        <tr><th>Matrícula</th><th>Nome</th><th>CPF</th><th>E-mail</th></tr>
+                        <tr><th>Matrícula</th><th>Nome</th><th>CPF</th><th>Telefone</th><th>E-mail</th></tr>
                     </thead>
                     <tbody id="tabela-alunos"></tbody>
                 </table>
@@ -80,7 +81,7 @@
                 <h3>Professores Cadastrados no Sistema</h3>
                 <table>
                     <thead>
-                        <tr><th>Código</th><th>Nome</th><th>Especialidade</th><th>E-mail</th></tr>
+                        <tr><th>Código</th><th>Nome</th><th>CPF</th><th>Telefone</th><th>Especialidade</th><th>E-mail</th></tr>
                     </thead>
                     <tbody id="tabela-professores"></tbody>
                 </table>
@@ -124,13 +125,12 @@
 </div>
 
 <script>
-    // Banco de dados em memória inicializado com exemplos
     let db = {
         alunos: [
-            { matricula: "2026001", nome: "Marco Aurélio Dos Santos Silva", cpf: "456.994.039-23", nasc: "10/02/2006", tel: "11992914523", email: "marcolacom@email.com" }
+            { matricula: "2026001", nome: "Marco Aurélio Dos Santos Silva", cpf: "45699403923", nasc: "10/02/2006", tel: "11992914523", email: "marcolacom@email.com" }
         ],
         professores: [
-            { codigo: "PROF001", nome: "Carlos", cpf: "123.456.789-00", especialidade: "Matemática", email: "carlos@escola.com" }
+            { codigo: "PROF001", nome: "Carlos", cpf: "12345678900", tel: "11988887777", especialidade: "Matemática", email: "carlos@escola.com" }
         ],
         matriculas: [
             { alunoMatricula: "2026001", turma: "Turma A - 1º Ano", semestre: "1/2026", status: "Ativa" }
@@ -145,25 +145,21 @@
 
     let perfilAtual = null;
 
-    // Executado ao carregar a página
     function inicializarSistema() {
         atualizarSelectLogin();
         atualizarTabelasAdmin();
     }
 
-    // Atualiza o select da tela de login com Admin, todos os Professores e todos os Alunos cadastrados
     function atualizarSelectLogin() {
         const selectLogin = document.getElementById("login-perfil");
         selectLogin.innerHTML = `
             <option value="admin">Administrador / Funcionário (Secretaria)</option>
         `;
 
-        // Adiciona dinamicamente os professores cadastrados ao select de login
         db.professores.forEach(prof => {
             selectLogin.innerHTML += `<option value="prof_${prof.codigo}">Professor (${prof.nome} - ${prof.especialidade})</option>`;
         });
 
-        // Adiciona dinamicamente os alunos cadastrados ao select de login
         db.alunos.forEach(aluno => {
             selectLogin.innerHTML += `<option value="aluno_${aluno.matricula}">Aluno (${aluno.nome} - Mat: ${aluno.matricula})</option>`;
         });
@@ -175,7 +171,6 @@
         document.getElementById("login-section").classList.add("hidden");
         document.getElementById("app-section").classList.remove("hidden");
 
-        // Ocultar todos os painéis
         document.getElementById("panel-admin").classList.add("hidden");
         document.getElementById("panel-professor").classList.add("hidden");
         document.getElementById("panel-aluno").classList.add("hidden");
@@ -213,13 +208,24 @@
 
     function matricularAluno() {
         const nome = document.getElementById("aluno-nome").value.trim();
-        const cpf = document.getElementById("aluno-cpf").value.trim();
+        const cpf = document.getElementById("aluno-cpf").value.trim().replace(/\D/g, '');
         const nasc = document.getElementById("aluno-nasc").value;
-        const tel = document.getElementById("aluno-tel").value.trim();
+        const tel = document.getElementById("aluno-tel").value.trim().replace(/\D/g, '');
         const email = document.getElementById("aluno-email").value.trim();
 
         if (!nome || !cpf) {
-            alert("Nome e CPF são de preenchimento obrigatório!");
+            alert("Erro: Nome e CPF são de preenchimento obrigatório!");
+            return;
+        }
+
+        // Validação estrita de limite e quantidade exata (11 caracteres)
+        if (cpf.length !== 11) {
+            alert("Erro: O CPF deve conter exatamente 11 caracteres numéricos!");
+            return;
+        }
+
+        if (tel !== "" && tel.length !== 11) {
+            alert("Erro: O telefone deve conter exatamente 11 caracteres (2 do DDD + 9 do número)!");
             return;
         }
 
@@ -246,15 +252,26 @@
         atualizarSelectLogin();
     }
 
-    // Função para cadastrar novo professor
     function cadastrarProfessor() {
         const nome = document.getElementById("prof-nome").value.trim();
-        const cpf = document.getElementById("prof-cpf").value.trim();
+        const cpf = document.getElementById("prof-cpf").value.trim().replace(/\D/g, '');
+        const tel = document.getElementById("prof-tel").value.trim().replace(/\D/g, '');
         const especialidade = document.getElementById("prof-especialidade").value.trim();
         const email = document.getElementById("prof-email").value.trim();
 
         if (!nome || !cpf) {
-            alert("Nome e CPF do professor são obrigatórios!");
+            alert("Erro: Nome e CPF do professor são obrigatórios!");
+            return;
+        }
+
+        // Validação estrita de limite e quantidade exata (11 caracteres)
+        if (cpf.length !== 11) {
+            alert("Erro: O CPF do professor deve conter exatamente 11 caracteres numéricos!");
+            return;
+        }
+
+        if (tel !== "" && tel.length !== 11) {
+            alert("Erro: O telefone do professor deve conter exatamente 11 caracteres (2 do DDD + 9 do número)!");
             return;
         }
 
@@ -266,12 +283,13 @@
 
         const novoCodigo = "PROF" + String(db.professores.length + 1).padStart(3, '0');
 
-        db.professores.push({ codigo: novoCodigo, nome, cpf, especialidade, email });
+        db.professores.push({ codigo: novoCodigo, nome, cpf, tel, especialidade, email });
 
         alert(`Professor cadastrado com sucesso! Código gerado: ${novoCodigo}`);
 
         document.getElementById("prof-nome").value = "";
         document.getElementById("prof-cpf").value = "";
+        document.getElementById("prof-tel").value = "";
         document.getElementById("prof-especialidade").value = "";
         document.getElementById("prof-email").value = "";
 
@@ -311,18 +329,16 @@
     }
 
     function atualizarTabelasAdmin() {
-        // Tabela de Alunos
         const tbodyAlunos = document.getElementById("tabela-alunos");
         tbodyAlunos.innerHTML = "";
         db.alunos.forEach(aluno => {
-            tbodyAlunos.innerHTML += `<tr><td>${aluno.matricula}</td><td>${aluno.nome}</td><td>${aluno.cpf}</td><td>${aluno.email}</td></tr>`;
+            tbodyAlunos.innerHTML += `<tr><td>${aluno.matricula}</td><td>${aluno.nome}</td><td>${aluno.cpf}</td><td>${aluno.tel || '-'}</td><td>${aluno.email}</td></tr>`;
         });
 
-        // Tabela de Professores
         const tbodyProf = document.getElementById("tabela-professores");
         tbodyProf.innerHTML = "";
         db.professores.forEach(prof => {
-            tbodyProf.innerHTML += `<tr><td>${prof.codigo}</td><td>${prof.nome}</td><td>${prof.especialidade}</td><td>${prof.email}</td></tr>`;
+            tbodyProf.innerHTML += `<tr><td>${prof.codigo}</td><td>${prof.nome}</td><td>${prof.cpf}</td><td>${prof.tel || '-'}</td><td>${prof.especialidade}</td><td>${prof.email}</td></tr>`;
         });
 
         atualizarSelectAlunos("prof-aluno-select");
