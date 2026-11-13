@@ -29,8 +29,7 @@
         <h2>Autenticação no Sistema</h2>
         <p>Selecione o perfil de acesso para testar as funcionalidades:</p>
         <select id="login-perfil">
-            <option value="admin">Administrador / Funcionário (Secretaria)</option>
-            <option value="professor">Professor (Prof. Carlos)</option>
+            <!-- Preenchido dinamicamente via JavaScript -->
         </select>
         <button onclick="realizarLogin()">Entrar</button>
     </div>
@@ -46,6 +45,7 @@
         <div id="panel-admin" class="hidden">
             <h2>Painel Administrativo / Secretaria</h2>
             
+            <!-- CADASTRO DE ALUNO -->
             <div class="section">
                 <h3>Matricular Aluno</h3>
                 <input type="text" id="aluno-nome" placeholder="Nome Completo">
@@ -56,6 +56,16 @@
                 <button onclick="matricularAluno()">Matricular Aluno</button>
             </div>
 
+            <!-- CADASTRO DE PROFESSOR (NOVO) -->
+            <div class="section">
+                <h3>Cadastrar Professor</h3>
+                <input type="text" id="prof-nome" placeholder="Nome Completo do Professor">
+                <input type="text" id="prof-cpf" placeholder="CPF (ex: 222.333.444-55)">
+                <input type="text" id="prof-especialidade" placeholder="Especialidade / Disciplina (ex: Matemática)">
+                <input type="email" id="prof-email" placeholder="E-mail">
+                <button onclick="cadastrarProfessor()">Cadastrar Professor</button>
+            </div>
+
             <div class="section">
                 <h3>Alunos Cadastrados no Sistema</h3>
                 <table>
@@ -63,6 +73,16 @@
                         <tr><th>Matrícula</th><th>Nome</th><th>CPF</th><th>E-mail</th></tr>
                     </thead>
                     <tbody id="tabela-alunos"></tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h3>Professores Cadastrados no Sistema</h3>
+                <table>
+                    <thead>
+                        <tr><th>Código</th><th>Nome</th><th>Especialidade</th><th>E-mail</th></tr>
+                    </thead>
+                    <tbody id="tabela-professores"></tbody>
                 </table>
             </div>
         </div>
@@ -77,6 +97,8 @@
                     <option value="Matemática">Matemática</option>
                     <option value="Português">Português</option>
                     <option value="História">História</option>
+                    <option value="Ciências">Ciências</option>
+                    <option value="Geografia">Geografia</option>
                 </select>
                 <input type="number" id="prof-nota" placeholder="Nota da Avaliação (0 a 10)" min="0" max="10" step="0.1">
                 <input type="number" id="prof-faltas" placeholder="Número de Faltas" min="0">
@@ -107,6 +129,9 @@
         alunos: [
             { matricula: "2026001", nome: "Marco Aurélio Dos Santos Silva", cpf: "456.994.039-23", nasc: "10/02/2006", tel: "11992914523", email: "marcolacom@email.com" }
         ],
+        professores: [
+            { codigo: "PROF001", nome: "Carlos", cpf: "123.456.789-00", especialidade: "Matemática", email: "carlos@escola.com" }
+        ],
         matriculas: [
             { alunoMatricula: "2026001", turma: "Turma A - 1º Ano", semestre: "1/2026", status: "Ativa" }
         ],
@@ -123,16 +148,22 @@
     // Executado ao carregar a página
     function inicializarSistema() {
         atualizarSelectLogin();
+        atualizarTabelasAdmin();
     }
 
-    // Atualiza o select da tela de login com os perfis fixos + todos os alunos cadastrados
+    // Atualiza o select da tela de login com Admin, todos os Professores e todos os Alunos cadastrados
     function atualizarSelectLogin() {
         const selectLogin = document.getElementById("login-perfil");
         selectLogin.innerHTML = `
             <option value="admin">Administrador / Funcionário (Secretaria)</option>
-            <option value="professor">Professor (Prof. Carlos)</option>
         `;
 
+        // Adiciona dinamicamente os professores cadastrados ao select de login
+        db.professores.forEach(prof => {
+            selectLogin.innerHTML += `<option value="prof_${prof.codigo}">Professor (${prof.nome} - ${prof.especialidade})</option>`;
+        });
+
+        // Adiciona dinamicamente os alunos cadastrados ao select de login
         db.alunos.forEach(aluno => {
             selectLogin.innerHTML += `<option value="aluno_${aluno.matricula}">Aluno (${aluno.nome} - Mat: ${aluno.matricula})</option>`;
         });
@@ -154,10 +185,13 @@
             document.getElementById("panel-admin").classList.remove("hidden");
             document.getElementById("welcome-msg").innerText = "Perfil: Administrador / Secretaria";
             atualizarTabelasAdmin();
-        } else if (valorSelecionado === "professor") {
+        } else if (valorSelecionado.startsWith("prof_")) {
             perfilAtual = "professor";
+            const codigoProf = valorSelecionado.replace("prof_", "");
+            const profObj = db.professores.find(p => p.codigo === codigoProf);
+
             document.getElementById("panel-professor").classList.remove("hidden");
-            document.getElementById("welcome-msg").innerText = "Perfil: Professor Carlos";
+            document.getElementById("welcome-msg").innerText = `Perfil: Professor (${profObj ? profObj.nome : 'Carlos'})`;
             atualizarSelectAlunos("prof-aluno-select");
         } else if (valorSelecionado.startsWith("aluno_")) {
             perfilAtual = "aluno";
@@ -189,14 +223,12 @@
             return;
         }
 
-        // Cadastro único por CPF
         const cpfExiste = db.alunos.some(a => a.cpf === cpf);
         if (cpfExiste) {
             alert("Erro: Já existe um aluno cadastrado com este CPF.");
             return;
         }
 
-        // Geração automática de matrícula única
         const novaMatricula = "2026" + String(db.alunos.length + 1).padStart(3, '0');
 
         db.alunos.push({ matricula: novaMatricula, nome, cpf, nasc, tel, email });
@@ -214,6 +246,39 @@
         atualizarSelectLogin();
     }
 
+    // Função para cadastrar novo professor
+    function cadastrarProfessor() {
+        const nome = document.getElementById("prof-nome").value.trim();
+        const cpf = document.getElementById("prof-cpf").value.trim();
+        const especialidade = document.getElementById("prof-especialidade").value.trim();
+        const email = document.getElementById("prof-email").value.trim();
+
+        if (!nome || !cpf) {
+            alert("Nome e CPF do professor são obrigatórios!");
+            return;
+        }
+
+        const cpfExiste = db.professores.some(p => p.cpf === cpf);
+        if (cpfExiste) {
+            alert("Erro: Já existe um professor cadastrado com este CPF.");
+            return;
+        }
+
+        const novoCodigo = "PROF" + String(db.professores.length + 1).padStart(3, '0');
+
+        db.professores.push({ codigo: novoCodigo, nome, cpf, especialidade, email });
+
+        alert(`Professor cadastrado com sucesso! Código gerado: ${novoCodigo}`);
+
+        document.getElementById("prof-nome").value = "";
+        document.getElementById("prof-cpf").value = "";
+        document.getElementById("prof-especialidade").value = "";
+        document.getElementById("prof-email").value = "";
+
+        atualizarTabelasAdmin();
+        atualizarSelectLogin();
+    }
+
     function salvarNotasFrequencia() {
         const matricula = document.getElementById("prof-aluno-select").value;
         const disciplina = document.getElementById("prof-disciplina").value;
@@ -225,7 +290,6 @@
             return;
         }
 
-        // Escala de notas de 0 a 10
         if (isNaN(nota) || nota < 0 || nota > 10) {
             alert("Erro: A nota inserida deve estar na faixa de 0 a 10.");
             return;
@@ -240,7 +304,6 @@
             db.academico[matricula] = {};
         }
 
-        // Regra de Aprovação simplificada (Média mínima >= 6.0)
         const situacao = nota >= 6.0 ? "Aprovado" : "Reprovado";
 
         db.academico[matricula][disciplina] = { nota, faltas, situacao };
@@ -248,11 +311,20 @@
     }
 
     function atualizarTabelasAdmin() {
-        const tbody = document.getElementById("tabela-alunos");
-        tbody.innerHTML = "";
+        // Tabela de Alunos
+        const tbodyAlunos = document.getElementById("tabela-alunos");
+        tbodyAlunos.innerHTML = "";
         db.alunos.forEach(aluno => {
-            tbody.innerHTML += `<tr><td>${aluno.matricula}</td><td>${aluno.nome}</td><td>${aluno.cpf}</td><td>${aluno.email}</td></tr>`;
+            tbodyAlunos.innerHTML += `<tr><td>${aluno.matricula}</td><td>${aluno.nome}</td><td>${aluno.cpf}</td><td>${aluno.email}</td></tr>`;
         });
+
+        // Tabela de Professores
+        const tbodyProf = document.getElementById("tabela-professores");
+        tbodyProf.innerHTML = "";
+        db.professores.forEach(prof => {
+            tbodyProf.innerHTML += `<tr><td>${prof.codigo}</td><td>${prof.nome}</td><td>${prof.especialidade}</td><td>${prof.email}</td></tr>`;
+        });
+
         atualizarSelectAlunos("prof-aluno-select");
     }
 
@@ -264,7 +336,6 @@
         });
     }
 
-    // Acesso do aluno aos seus próprios dados
     function carregarBoletimAluno(matricula) {
         const alunoObj = db.alunos.find(a => a.matricula === matricula);
         if (alunoObj) {
